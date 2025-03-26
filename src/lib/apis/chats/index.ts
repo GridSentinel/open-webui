@@ -1,4 +1,4 @@
-import { WEBUI_API_BASE_URL } from '$lib/constants';
+import { WEBUI_API_BASE_URL, GRIDAPPSD_API_BASE_URL } from '$lib/constants';
 import { getTimeRange } from '$lib/utils';
 
 export const createNewChat = async (token: string, chat: object) => {
@@ -1052,3 +1052,136 @@ export const archiveAllChats = async (token: string) => {
 
 	return res;
 };
+
+export const getRegions = async () => {
+	let error = null;
+
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/regions`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(async (res) => {
+			console.log("get regios gggggggggg ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get regios ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+}
+export const getSubRegions = async (regionId: string) => {
+	let error = null;
+
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/regions/${regionId}/subregions`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(async (res) => {
+			console.log("get regios gggggggggg ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get regios ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+}
+export const getFeeders = async (subRegionId: string) => {
+	let error = null;
+
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/subregions/${subRegionId}/feeders`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(async (res) => {
+			console.log("get regios gggggggggg ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get regios ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+
+}
+
+export const startSimulation = async (feederId: string, subRegionId: string, regionId: string) => {
+	let error = null;
+
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/simulations`, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			"feederId": feederId,
+			"subregionId": subRegionId,
+			"regionId": regionId
+		})
+	})
+		.then(async (res) => {
+			console.log("get regios gggggggggg ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get regios ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+
+}

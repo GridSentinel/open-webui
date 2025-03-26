@@ -81,6 +81,7 @@
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
 	import ChatControls from './ChatControls.svelte';
+	import GridModel from './GridModel.svelte';
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
 	import Placeholder from './Placeholder.svelte';
 	import NotificationToast from '../NotificationToast.svelte';
@@ -425,7 +426,7 @@
 			}
 		}
 
-		showControls.subscribe(async (value) => {
+		showControls.subscribe(async (value) => {          
 			if (controlPane && !$mobile) {
 				try {
 					if (value) {
@@ -1705,6 +1706,7 @@
 	};
 
 	const submitMessage = async (parentId, prompt) => {
+
 		let userPrompt = prompt;
 		let userMessageId = uuidv4();
 
@@ -1865,6 +1867,18 @@
 			}
 		}
 	};
+
+	console.log("SHHHH",$showControls)
+
+	let selectedRegion = "alaska";
+	let selectedSubRegion = "";
+	let selectedLine = "";
+
+  function handleSelectionChange() {
+    console.log("Region:", selectedRegion);
+    console.log("Sub-Region:", selectedSubRegion);
+    console.log("Line:", selectedLine);
+  }
 </script>
 
 <svelte:head>
@@ -1935,8 +1949,11 @@
 			{initNewChat}
 		/>
 
-		<PaneGroup direction="horizontal" class="w-full h-full">
-			<Pane defaultSize={50} class="h-full flex w-full relative">
+		<PaneGroup direction="{$mobile ? 'vertical' : 'horizontal'}" class="w-full h-full ">
+			
+
+			
+			<Pane defaultSize={50} class="h-full flex  relative {$showControls ? '  w-1/2' : ' '}" >
 				{#if !history.currentId && !$chatId && selectedModels.length <= 1 && ($banners.length > 0 || ($config?.license_metadata?.type ?? null) === 'trial' || (($config?.license_metadata?.seats ?? null) !== null && $config?.user_count > $config?.license_metadata?.seats))}
 					<div class="absolute top-12 left-0 right-0 w-full z-30">
 						<div class=" flex flex-col gap-1 w-full">
@@ -2110,28 +2127,37 @@
 					{/if}
 				</div>
 			</Pane>
-
+			
+			<Pane defaultSize={50} class="h-full {$mobile ? ' ' : '  w-1/2'} {$showControls? '  hidden' : ' '}"  >
+				<GridModel 
+				bind:selectedRegion
+				bind:selectedSubRegion
+				bind:selectedFeeder={selectedLine}
+				on:change={handleSelectionChange}
+				/>
+			</Pane>
+			
 			<ChatControls
-				bind:this={controlPaneComponent}
-				bind:history
-				bind:chatFiles
-				bind:params
-				bind:files
-				bind:pane={controlPane}
-				chatId={$chatId}
-				modelId={selectedModelIds?.at(0) ?? null}
-				models={selectedModelIds.reduce((a, e, i, arr) => {
-					const model = $models.find((m) => m.id === e);
-					if (model) {
-						return [...a, model];
-					}
-					return a;
-				}, [])}
-				{submitPrompt}
-				{stopResponse}
-				{showMessage}
-				{eventTarget}
-			/>
+			bind:this={controlPaneComponent}
+			bind:history
+			bind:chatFiles
+			bind:params
+			bind:files
+			bind:pane={controlPane}
+			chatId={$chatId}
+			modelId={selectedModelIds?.at(0) ?? null}
+			models={selectedModelIds.reduce((a, e, i, arr) => {
+				const model = $models.find((m) => m.id === e);
+				if (model) {
+					return [...a, model];
+				}
+				return a;
+			}, [])}
+			{submitPrompt}
+			{stopResponse}
+			{showMessage}
+			{eventTarget}
+			/>		
 		</PaneGroup>
 	{:else if loading}
 		<div class=" flex items-center justify-center h-full w-full">
