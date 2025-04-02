@@ -1,21 +1,25 @@
 <script lang="ts">
     import {
-	    getFeeders,
-		getRegions,
-        getSubRegions
+      getFeeders,
+      getRegions,
+      getSubRegions,
+      renderGridCombined
 	} from '$lib/apis/chats';
 
-    //import { powerSystemConfiguration } from '$lib/stores';
+
+  //import { powerSystemConfiguration } from '$lib/stores';
 	import { onMount } from 'svelte';
+  import GridVisualization from "./GridVisualization.svelte";
 
 
-    export let selectedRegion = "";
-    export let selectedSubRegion = "";
-    export let selectedFeeder = "";
+  export let selectedRegion = "";
+  export let selectedSubRegion = "";
+  export let selectedFeeder = "";
 
     let regions: any[]  = [];
     let subRegions : any[]  = [];
     let feeders : any[]  = [];
+    let gridData = null;
 
     onMount(
         async () => {
@@ -46,7 +50,17 @@
             console.error("Error fetching sub-regions:", error);
             }
         }
-
+    
+    async function getGridData(feederId: string) {
+            try {
+              gridData = await renderGridCombined(feederId).catch(async (error) => {
+                        return [];
+                    });
+            } catch (error) {
+            console.error("Error fetching sub-regions:", error);
+            }
+        }
+    
 
     function handleRegionChange(event) {
         selectedRegion = event.target.value;
@@ -68,9 +82,19 @@
       console.log("Selected Feeder:", selectedFeeder);
       console.log("Selected Region:", selectedRegion);
       console.log("Selected SubRegion:", selectedSubRegion);
+      getGridData(selectedFeeder)
     }
 
   </script>
+  <style>
+    .full-size {
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      border: 1px solid black;
+      margin: 10px;
+    }
+  </style>
   
   <div class="dark:bg-gray-900 flex flex-col gap-4 mt-6 p-4 bg-white">
     <!-- First Selector -->
@@ -116,7 +140,17 @@
     </div>
   </div>
   
-  <div class="max-w-full max-h-full " style="width:100%px; height:15px" >
-      <img src="/assets/images/grid.png" alt="Description" />
+  <div class="max-w-full max-h-full full-size "  >
+
+    <GridVisualization feederId ="{selectedFeeder}" />
+
+  <!-- {#if gridData}
+
+    <GridVisualization data={gridData}  
+      on:nodeSelect={handleNodeSelect}
+      on:linkSelect={handleLinkSelect}
+      on:nodeEdit={handleNodeEdit} 
+    -->
+  <!--  {/if} -->
   </div>
   

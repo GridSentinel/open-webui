@@ -1148,20 +1148,15 @@ export const getFeeders = async (subRegionId: string) => {
 
 }
 
-export const startSimulation = async (feederId: string, subRegionId: string, regionId: string) => {
+export const renderGridCombined = async (feederId: string) => {
 	let error = null;
 
-	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/simulations`, {
-		method: 'POST',
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/grid/feeders/${feederId}/render`, {
+		method: 'GET',
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			"feederId": feederId,
-			"subregionId": subRegionId,
-			"regionId": regionId
-		})
+		}
 	})
 		.then(async (res) => {
 			console.log("get regios gggggggggg ", res)
