@@ -12,30 +12,45 @@
   import GridVisualization from "./GridVisualization.svelte";
 
 
+  interface Region {
+    id: string;
+    name: string;
+  }
+
+  interface SubRegion {
+    id: string;
+    name: string;
+  }
+
+  interface Feeder {
+    id: string;
+    name: string;
+  }
+
   export let selectedRegion = "";
   export let selectedSubRegion = "";
   export let selectedFeeder = "";
 
-    let regions: any[]  = [];
-    let subRegions : any[]  = [];
-    let feeders : any[]  = [];
+    let regions: Region[] = [];
+    let subRegions: SubRegion[] = [];
+    let feeders: Feeder[] = [];
     let gridData = null;
 
     onMount(
         async () => {
-        regions = await getRegions().catch(async (error) => {
-				return [];
-			})
+        regions = await getRegions().catch(() => []);
+
+        selectedRegion = "";
+        selectedSubRegion = "";
+        selectedFeeder = "";
         }
 
     );
 
     async function getSubRegionsByRegingId(region: string) {
         try {
-            subRegions = await getSubRegions(region).catch(async (error) => {
-                    return [];
-                });
-
+         
+            subRegions = await getSubRegions(region).catch(() => []);
             feeders = []; // Reset lines when a new sub-region is selected
         } catch (error) {
         console.error("Error fetching sub-regions:", error);
@@ -43,9 +58,7 @@
     }
     async function getFeedersBySubRegingId(subRegion: string) {
             try {
-                feeders = await getFeeders(subRegion).catch(async (error) => {
-                        return [];
-                    });
+                feeders = await getFeeders(subRegion).catch(() => []);
             } catch (error) {
             console.error("Error fetching sub-regions:", error);
             }
@@ -53,32 +66,34 @@
     
     async function getGridData(feederId: string) {
             try {
-              gridData = await renderGridCombined(feederId).catch(async (error) => {
-                        return [];
-                    });
+              gridData = await renderGridCombined(feederId).catch(() => null);
             } catch (error) {
             console.error("Error fetching sub-regions:", error);
             }
         }
     
 
-    function handleRegionChange(event) {
-        selectedRegion = event.target.value;
+    function handleRegionChange(event: Event) {
+     
+        const target = event.target as HTMLSelectElement;
+        selectedRegion = target.value;
         console.log("Selected Region:", selectedRegion);
         selectedSubRegion = "";
         selectedFeeder = "";
         getSubRegionsByRegingId(selectedRegion);
     }
   
-    function handleSubRegionChange(event) {
-        selectedSubRegion = event.target.value;
+    function handleSubRegionChange(event: Event) {
+        const target = event.target as HTMLSelectElement;
+        selectedSubRegion = target.value;
         console.log("Selected Sub-Region:", selectedSubRegion);
         selectedFeeder = "";
         getFeedersBySubRegingId(selectedSubRegion)
     }
   
-    function handleLineChange(event) {
-      selectedFeeder = event.target.value;
+    function handleLineChange(event: Event) {
+      const target = event.target as HTMLSelectElement;
+      selectedFeeder = target.value;
       console.log("Selected Feeder:", selectedFeeder);
       console.log("Selected Region:", selectedRegion);
       console.log("Selected SubRegion:", selectedSubRegion);
@@ -87,70 +102,129 @@
 
   </script>
   <style>
-    .full-size {
-      width: 100%;
-      height: 100%;
-      background-color: #000;
-      border: 1px solid black;
-      margin: 10px;
+    .container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        background-color: var(--bg-color);
+        margin-top: 2rem;
+    }
+
+    .select-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .label {
+        min-width: 180px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--text-color);
+    }
+
+    .select {
+        min-width: 200px;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid var(--border-color);
+        background-color: var(--select-bg);
+        color: var(--text-color);
+        outline: none;
+        transition: border-color 0.2s;
+        font-size: 0.875rem;
+    }
+
+    .select:hover {
+        border-color: var(--border-hover);
+    }
+
+    .select:focus {
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 2px var(--ring-color);
+    }
+
+    .visualization-container {
+        width: 100%;
+        height: calc(100vh - 300px);
+        min-height: 500px;
+        background-color: var(--bg-color);
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    :global(:root) {
+        --bg-color: #ffffff;
+        --text-color: #374151;
+        --border-color: #d1d5db;
+        --border-hover: #9ca3af;
+        --border-focus: #3b82f6;
+        --ring-color: rgba(59, 130, 246, 0.2);
+        --select-bg: #ffffff;
+    }
+
+    :global(.dark) {
+        --bg-color: #171717;
+        --text-color: #f3f4f6;
+        --border-color: #4b5563;
+        --border-hover: #6b7280;
+        --border-focus: #60a5fa;
+        --ring-color: rgba(96, 165, 250, 0.2);
+        --select-bg: #1f2937;
     }
   </style>
   
-  <div class="dark:bg-gray-900 flex flex-col gap-4 mt-6 p-4 bg-white">
-    <!-- First Selector -->
-    <div class="flex items-center">
-      <label for="region-select" class="mr-4 self-center font-medium text-sm text-gray-850 dark:text-white font-primary">Geographical region name</label>
-      <select
-        class="dark:bg-gray-900 w-fit pr-8 rounded-sm py-2 px-2 text-sm bg-transparent outline-none"
-        bind:value={selectedRegion}
-        on:change={handleRegionChange}
-      >
-        {#each regions as region}
-            <option class="m-8"  value={region.id}>{region.name}</option>
-        {/each}
-      </select>
+  <div class="container dark:bg-gray-900 bg-white">
+    <div class="select-container">
+        <label for="region-select" class="label dark:text-white">Geographical Region</label>
+        <select
+            id="region-select"
+            class="select dark:bg-gray-900"
+            bind:value={selectedRegion}
+            on:change={handleRegionChange}
+        >
+            <option value="">Select a region</option>
+            {#each regions as region}
+                <option value={region.id}>{region.name}</option>
+            {/each}
+        </select>
     </div>
-  
-    <!-- Second Selector -->
-    <div class="flex items-center">
-      <label for="tree-dropdown-1" class="mr-4 self-center font-medium text-sm text-gray-850 dark:text-white font-primary">Sub-geographical region name</label>
-      <select 
-        class="dark:bg-gray-900 w-fit pr-8 rounded-sm py-2 px-2 text-sm bg-transparent outline-none"
-        bind:value={selectedSubRegion}
-        on:change={handleSubRegionChange}
-      >
-      {#each subRegions as subRegion}
-        <option value={subRegion.id}>{subRegion.name}</option>
-      {/each}
-      </select>
+
+    <div class="select-container">
+        <label for="subregion-select" class="label dark:text-white">Sub-geographical Region</label>
+        <select
+            id="subregion-select"
+            class="select dark:bg-gray-900"
+            bind:value={selectedSubRegion}
+            on:change={handleSubRegionChange}
+            disabled={!selectedRegion}
+        >
+            <option value="">Select a sub-region</option>
+            {#each subRegions as subRegion}
+                <option value={subRegion.id}>{subRegion.name}</option>
+            {/each}
+        </select>
     </div>
-  
-    <!-- Third Selector -->
-    <div class="flex items-center">
-      <label for="tree-dropdown-2" class="mr-4 self-center font-medium text-sm text-gray-850 dark:text-white font-primary">Line name</label>
-      <select 
-        class="dark:bg-gray-900 w-fit pr-8 rounded-sm py-2 px-2 text-sm bg-transparent outline-none"
-        bind:value={selectedFeeder}
-        on:change={handleLineChange}
-      >
-      {#each feeders as feeder}
-         <option class="p-2" value={feeder.id}>{feeder.name}</option>
-      {/each}
-      </select>
+
+    <div class="select-container">
+        <label for="feeder-select" class="label dark:text-white">Line Name</label>
+        <select
+            id="feeder-select"
+            class="select dark:bg-gray-900"
+            bind:value={selectedFeeder}
+            on:change={handleLineChange}
+            disabled={!selectedSubRegion}
+        >
+            <option value="">Select a feeder</option>
+            {#each feeders as feeder}
+                <option value={feeder.id}>{feeder.name}</option>
+            {/each}
+        </select>
     </div>
-  </div>
-  
-  <div class="max-w-full max-h-full full-size "  >
 
-    <GridVisualization feederId ="{selectedFeeder}" />
-
-  <!-- {#if gridData}
-
-    <GridVisualization data={gridData}  
-      on:nodeSelect={handleNodeSelect}
-      on:linkSelect={handleLinkSelect}
-      on:nodeEdit={handleNodeEdit} 
-    -->
-  <!--  {/if} -->
+    <div class="visualization-container dark:bg-gray-900">
+        <GridVisualization feederId={selectedFeeder} />
+    </div>
   </div>
   
