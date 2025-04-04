@@ -1180,3 +1180,182 @@ export const renderGridCombined = async (feederId: string) => {
 	return res;
 
 }
+export const getTransformerDetails = async (transformerId: string) => {
+	let error = null;
+
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/grid/transformers/${transformerId}`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(async (res) => {
+			console.log("get transformers  ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get transformers ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+
+}
+export const getRegulatorDetails = async (regulatorId: string) => {
+	let error = null;
+
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/grid/regulators/${regulatorId}`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(async (res) => {
+			console.log("get regulators  ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get regulators ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+
+}
+export const getLineDetails = async (lineId: string) => {
+	let error = null;
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/grid/lines/${lineId}`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(async (res) => {
+			console.log("get lines  ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get lines ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+
+}
+export const getConsumerDetails = async (consumerId: string) => {
+	let error = null;
+
+	const res = await fetch(`${GRIDAPPSD_API_BASE_URL}/grid/consumers/${consumerId}`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json'
+		}
+	})
+		.then(async (res) => {
+			console.log("get consumers  ", res)
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.then((json) => {
+			console.log("get consumers ############## ", json)
+			return json.data;
+		})
+		.catch((err) => {
+			error = err;
+			console.log(err);
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+
+}
+
+
+export const getComponentDetails = async (componentId: string, componentType: string) => {
+	try {
+		let endpoint = '';
+		switch (componentType) {
+			case 'PowerTransformer':
+				endpoint = `/grid/transformers/${componentId}`;
+				break;
+			case 'Regulator':
+			case 'RatioTapChanger':
+				endpoint = `/grid/regulators/${componentId}`;
+				break;
+			case 'ACLineSegment':
+				endpoint = `/grid/lines/${componentId}`;
+				break;
+			case 'EnergyConsumer':
+			case 'ConformLoad':
+			case 'NonConformLoad':
+				endpoint = `/grid/consumers/${componentId}`;
+				break;
+			case 'LoadBreakSwitch':
+			case 'Breaker':
+			case 'Recloser':
+			case 'Sectionaliser':
+			case 'Disconnector':
+			case 'Fuse':
+			case 'Switch':
+				endpoint = `/grid/switches/${componentId}`;
+				break;
+			default:
+				throw new Error(`Unsupported component type: ${componentType}`);
+		}
+
+		const response = await fetch(`${GRIDAPPSD_API_BASE_URL}${endpoint}`);
+		if (!response.ok) {
+			throw new Error(`API returned ${response.status}`);
+		}
+
+		const data = await response.json();
+		if (data.status === 'success' && data.data) {
+			return data.data;
+		} else {
+			throw new Error(data.message || 'Unknown error');
+		}
+	} catch (error) {
+		console.error(`Error fetching ${componentType} details:`, error);
+		throw error;
+	}
+}
+
+
