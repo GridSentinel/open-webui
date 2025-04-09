@@ -4,12 +4,12 @@
       getRegions,
       getSubRegions,
       renderGridCombined
-	} from '$lib/apis/chats';
+	} from '$lib/apis/grid';
 
 
-  //import { powerSystemConfiguration } from '$lib/stores';
 	import { onMount } from 'svelte';
-  import GridVisualization from "./GridVisualization.svelte";
+  import GridVisualization from  '$lib/components/chat/GridModel/GridVisualization.svelte'   
+
 
 
   interface Region {

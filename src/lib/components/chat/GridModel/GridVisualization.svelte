@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import * as d3 from 'd3';
-	import { renderGridCombined, getComponentDetails } from '$lib/apis/chats';
+	import { renderGridCombined, getComponentDetails } from '$lib/apis/grid';
 	import { CIMComponentTypes , type CIMComponentType } from '$lib/types/cim';
 
 	// Types
