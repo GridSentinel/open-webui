@@ -1,5 +1,6 @@
 import { WEBUI_API_BASE_URL, GRIDAPPSD_API_BASE_URL } from '$lib/constants';
 import { getTimeRange } from '$lib/utils';
+import { CIMComponentTypes, type CIMComponentType } from '$lib/types/cim';
 
 export const createNewChat = async (token: string, chat: object) => {
 	let error = null;
@@ -1309,47 +1310,41 @@ export const getConsumerDetails = async (consumerId: string) => {
 }
 
 
-export const getComponentDetails = async (componentId: string, componentType: string) => {
+export const getComponentDetails = async (componentId: string, componentType: CIMComponentType) => {
 	try {
 		let endpoint = '';
 		switch (componentType) {
-			case 'PowerTransformer':
+			case CIMComponentTypes.PowerTransformer:
 				endpoint = `/grid/transformers/${componentId}`;
 				break;
-			case 'Regulator':
-			case 'RatioTapChanger':
+			case CIMComponentTypes.RatioTapChanger:
 				endpoint = `/grid/regulators/${componentId}`;
 				break;
-			case 'ACLineSegment':
+			case CIMComponentTypes.ACLineSegment:
 				endpoint = `/grid/lines/${componentId}`;
 				break;
-			case 'EnergyConsumer':
-			case 'ConformLoad':
-			case 'NonConformLoad':
+			case CIMComponentTypes.EnergyConsumer:
 				endpoint = `/grid/consumers/${componentId}`;
 				break;
-			case 'BatteryUnit':
+			case CIMComponentTypes.BatteryUnit:
 				endpoint = `/grid/batteries/${componentId}`;
 				break;
-			case 'PhotovoltaicUnit':
+			case CIMComponentTypes.PhotovoltaicUnit:
 				endpoint = `/grid/photovoltaics/${componentId}`;
 				break;
-			case 'SynchronousMachine':
-				endpoint = `/grid/SynchronousMachines/${componentId}`;
+			case CIMComponentTypes.SynchronousMachine:
+				endpoint = `/grid/synchronousmachines/${componentId}`;
 				break;
-			case 'EnergySource':
-				endpoint = `/grid/energy-sources/${componentId}`;
+			case CIMComponentTypes.EnergySource:
+				endpoint = `/grid/energysources/${componentId}`;
 				break;
-			case 'LinearShuntCompensator':
+			case CIMComponentTypes.LinearShuntCompensator:
 				endpoint = `/grid/linearshuntcompensators/${componentId}`;
 				break;
-			case 'LoadBreakSwitch':
-			case 'Breaker':
-			case 'Recloser':
-			case 'Sectionaliser':
-			case 'Disconnector':
-			case 'Fuse':
-			case 'Switch':
+			case CIMComponentTypes.LoadBreakSwitch:
+			case CIMComponentTypes.Breaker:
+			case CIMComponentTypes.Recloser:
+			case CIMComponentTypes.Fuse:
 				endpoint = `/grid/switches/${componentId}`;
 				break;
 			default:
