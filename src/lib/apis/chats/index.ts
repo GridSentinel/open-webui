@@ -1328,6 +1328,21 @@ export const getComponentDetails = async (componentId: string, componentType: st
 			case 'NonConformLoad':
 				endpoint = `/grid/consumers/${componentId}`;
 				break;
+			case 'BatteryUnit':
+				endpoint = `/grid/batteries/${componentId}`;
+				break;
+			case 'PhotovoltaicUnit':
+				endpoint = `/grid/photovoltaics/${componentId}`;
+				break;
+			case 'SynchronousMachine':
+				endpoint = `/grid/SynchronousMachines/${componentId}`;
+				break;
+			case 'EnergySource':
+				endpoint = `/grid/energy-sources/${componentId}`;
+				break;
+			case 'LinearShuntCompensator':
+				endpoint = `/grid/linearshuntcompensators/${componentId}`;
+				break;
 			case 'LoadBreakSwitch':
 			case 'Breaker':
 			case 'Recloser':

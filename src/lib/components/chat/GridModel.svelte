@@ -106,7 +106,7 @@
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
-        padding: 1.5rem;
+        padding: 0.75rem;
         background-color: var(--bg-color);
         margin-top: 2rem;
     }
@@ -147,7 +147,7 @@
 
     .visualization-container {
         width: 100%;
-        height: calc(100vh - 300px);
+        height: calc(100vh - 270px);
         min-height: 500px;
         background-color: var(--bg-color);
         border-radius: 0.5rem;

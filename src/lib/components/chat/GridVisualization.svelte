@@ -100,7 +100,8 @@
 		'Fuse',
 		'LinearShuntCompensator',
 		'LoadBreakSwitch',
-		'PowerElectronicsConnection',
+		'BatteryUnit',
+		'PhotovoltaicUnit',
 		'PowerTransformer',
 		'Recloser',
 		'SynchronousMachine',
@@ -190,7 +191,7 @@
 					console.log('Fetching grid data for feeder:', feederId);
 					const data = await renderGridCombined(feederId);
 					console.log('Received grid data:', data);
-					gridData = data;
+					gridData = data;				
 					
 					// Check if model is large
 					isLargeModel = isModelLarge(data.components);
@@ -254,7 +255,8 @@
 			'Fuse': '#e377c2', // Pink
 			'LinearShuntCompensator': '#7f7f7f', // Gray
 			'LoadBreakSwitch': '#bcbd22', // Yellow-Green
-			'PowerElectronicsConnection': '#17becf', // Cyan
+			'BatteryUnit': '#17becf', // Cyan
+			'PhotovoltaicUnit': '#ffd700', // Gold
 			'PowerTransformer': '#ff7f0e', // Orange
 			'Recloser': '#9467bd', // Purple
 			'SynchronousMachine': '#ffff00', // Yellow
@@ -265,12 +267,19 @@
 		const baseColor = colorMap[type] || '#f39c12'; // Default to orange if type not found
 
 		// Calculate color intensity based on zoom scale
-		// At zoom level 1 (100%), color is the base color
-		// As zoom increases, color becomes darker
 		const colorIntensity = Math.max(0.3, 1 / Math.sqrt(scale));
 		const color = d3.color(baseColor)?.darker(1 - colorIntensity).toString() || baseColor;
 
-		// Return the same shape for all equipment types
+		// Return different shapes based on component type
+		//if (type === 'PhotovoltaicUnit') {
+		//	return {
+		//		shape: 'polygon',
+		//		color: color,
+		//		size: [baseSize * 2.5, baseSize * 1.5] // Width and height for parallelogram
+		//	};
+		//}
+
+		// Default shape for other components
 		return {
 			shape: 'circle',
 			color: color,
@@ -412,7 +421,7 @@
 			return;
 		}
 
-		const context = ctx; // Create a non-null reference
+		const context = ctx;
 		
 		// Clear the canvas
 		context.clearRect(0, 0, width, height);
@@ -484,6 +493,19 @@
 					context.fill();
 				} else if (shape === 'rect' && Array.isArray(size)) {
 					context.fillRect(x - size[0] / 2, y - size[1] / 2, size[0], size[1]);
+				} else if (shape === 'polygon' && Array.isArray(size)) {
+					// Draw parallelogram
+					const width = size[0];
+					const height = size[1];
+					const skew = width * 0.3; // Skew factor for parallelogram
+
+					context.beginPath();
+					context.moveTo(x - width/2 + skew, y - height/2); // Top left
+					context.lineTo(x + width/2 + skew, y - height/2); // Top right
+					context.lineTo(x + width/2 - skew, y + height/2); // Bottom right
+					context.lineTo(x - width/2 - skew, y + height/2); // Bottom left
+					context.closePath();
+					context.fill();
 				}
 			}
 		});
@@ -784,99 +806,105 @@
 	{/if}
 	<canvas bind:this={canvas} {width} {height}></canvas>
 
-	<div class="zoom-controls">
-		<button class="zoom-button" on:click={zoomIn}>+</button>
-		<span class="zoom-percentage">{zoomPercentage}%</span>
-		<button class="zoom-button" on:click={zoomOut}>-</button>
-		<button class="reset-button" on:click={resetZoom}>Reset</button>
-	</div>
-
-	<button class="toggle-button filters-toggle" on:click={toggleFilters}>
-		{showFilters ? 'Hide Filters' : 'Show Filters'}
-	</button>
-
-	{#if showFilters}
-		<div class="filter-controls">
-			<h4>Filter Components</h4>
-			<div class="filter-buttons">
-				{#each allComponentTypes as type}
-					<button 
-						class="filter-button   " 
-						class:active={selectedComponentTypes.has(type)}
-						on:click={() => toggleComponentType(type)}
-					>
-						{type}
-					</button>
-				{/each}
-			</div>
-			{#if selectedComponentTypes.size > 0}
-				<button class="clear-filters" on:click={clearFilters}>Clear Filters</button>
-			{/if}
+	{#if gridData && !isLoadingGrid}
+		<div class="zoom-controls">
+			<button class="zoom-button" on:click={zoomIn}>+</button>
+			<span class="zoom-percentage">{zoomPercentage}%</span>
+			<button class="zoom-button" on:click={zoomOut}>-</button>
+			<button class="reset-button" on:click={resetZoom}>Reset</button>
 		</div>
-	{/if}
 
-	<button class="toggle-button legend-toggle" on:click={toggleLegend}>
-		{showLegend ? 'Hide Legend' : 'Show Legend'}
-	</button>
+		<button class="toggle-button filters-toggle" on:click={toggleFilters}>
+			{showFilters ? 'Hide Filters' : 'Show Filters'}
+		</button>
 
-	{#if showLegend}
-		<div class="legend">
-			<h4>Component Types</h4>
-			<div class="legend-items">
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #ff0000;"></div>
-					<span>AC Line Segment</span>
+		{#if showFilters}
+			<div class="filter-controls">
+				<h4>Filter Components</h4>
+				<div class="filter-buttons">
+					{#each allComponentTypes as type}
+						<button 
+							class="filter-button" 
+							class:active={selectedComponentTypes.has(type)}
+							on:click={() => toggleComponentType(type)}
+						>
+							{type}
+						</button>
+					{/each}
 				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #d62728;"></div>
-					<span>Breaker</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #0000ff;"></div>
-					<span>Connectivity Node</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #2ca02c;"></div>
-					<span>Energy Consumer</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #ff0000;"></div>
-					<span>Energy Source</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #e377c2;"></div>
-					<span>Fuse</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #7f7f7f;"></div>
-					<span>Linear Shunt Compensator</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #bcbd22;"></div>
-					<span>Load Break Switch</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #17becf;"></div>
-					<span>Power Electronics Connection</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #ff7f0e;"></div>
-					<span>Power Transformer</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #9467bd;"></div>
-					<span>Recloser</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #ffff00;"></div>
-					<span>Synchronous Machine</span>
-				</div>
-				<div class="legend-item">
-					<div class="legend-symbol" style="background-color: #17becf;"></div>
-					<span>Transformer Tank</span>
+				{#if selectedComponentTypes.size > 0}
+					<button class="clear-filters" on:click={clearFilters}>Clear Filters</button>
+				{/if}
+			</div>
+		{/if}
+
+		<button class="toggle-button legend-toggle" on:click={toggleLegend}>
+			{showLegend ? 'Hide Legend' : 'Show Legend'}
+		</button>
+
+		{#if showLegend}
+			<div class="legend">
+				<h4>Component Types</h4>
+				<div class="legend-items">
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #ff0000;"></div>
+						<span>AC Line Segment</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #d62728;"></div>
+						<span>Breaker</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #0000ff;"></div>
+						<span>Connectivity Node</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #2ca02c;"></div>
+						<span>Energy Consumer</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #ff0000;"></div>
+						<span>Energy Source</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #e377c2;"></div>
+						<span>Fuse</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #7f7f7f;"></div>
+						<span>Linear Shunt Compensator</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #bcbd22;"></div>
+						<span>Load Break Switch</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #17becf;"></div>
+						<span>Battery Unit</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #ffd700;"></div>
+						<span>Photovoltaic Unit</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #ff7f0e;"></div>
+						<span>Power Transformer</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #9467bd;"></div>
+						<span>Recloser</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #ffff00;"></div>
+						<span>Synchronous Machine</span>
+					</div>
+					<div class="legend-item">
+						<div class="legend-symbol" style="background-color: #17becf;"></div>
+						<span>Transformer Tank</span>
+					</div>
 				</div>
 			</div>
-		</div>
+		{/if}
 	{/if}
 
 	{#if popup.show}
@@ -1763,13 +1791,13 @@
 									</div>
 								</div>
 							{/if}
-						{:else if selectedComponent.type === "LoadBreakSwitch" ||
-						selectedComponent.type === "Breaker" ||
-						selectedComponent.type === "Recloser" ||
-						selectedComponent.type === "Sectionaliser" ||
-						selectedComponent.type === "Disconnector" ||
-						selectedComponent.type === "Fuse" ||
-						selectedComponent.type === "Switch" }
+						{:else if 	selectedComponent.type === "LoadBreakSwitch" ||
+									selectedComponent.type === "Breaker" ||
+									selectedComponent.type === "Recloser" ||
+									selectedComponent.type === "Sectionaliser" ||
+									selectedComponent.type === "Disconnector" ||
+									selectedComponent.type === "Fuse" ||
+									selectedComponent.type === "Switch" }
 							
 							{#if selectedComponent.additionalDetails.description}
 								<div class="property-group">
@@ -1969,6 +1997,1459 @@
 									</details>
 								</div>
 							{/if}
+						{:else if selectedComponent.type === "BatteryUnit"}
+							<div class="property-group">
+								<h4>Status</h4>
+								<div class="property">
+									<span class="property-name">State:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.state || "Unknown"}</span>
+								</div>
+								{#if selectedComponent.additionalDetails?.stateOfCharge !== undefined && selectedComponent.additionalDetails?.stateOfCharge !== null}
+									<div class="property">
+										<span class="property-name">State of Charge:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.stateOfCharge}%</span>
+									</div>
+								{/if}
+							</div>
+
+							{#if selectedComponent.additionalDetails?.specifications}
+								<div class="property-group">
+									<h4>Specifications</h4>
+									{#if selectedComponent.additionalDetails.specifications.capacity}
+										<div class="property">
+											<span class="property-name">Capacity:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.capacity}
+												{selectedComponent.additionalDetails.specifications.capacityUnit || "kWh"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.storedEnergy}
+										<div class="property">
+											<span class="property-name">Stored Energy:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.storedEnergy}
+												{selectedComponent.additionalDetails.specifications.capacityUnit || "kWh"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.ratedApparentPower}
+										<div class="property">
+											<span class="property-name">Rated Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.ratedApparentPower}
+												{selectedComponent.additionalDetails.specifications.powerUnit || "kVA"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.ratedVoltage}
+										<div class="property">
+											<span class="property-name">Rated Voltage:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.ratedVoltage}
+												{selectedComponent.additionalDetails.specifications.voltageUnit || "V"}
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							{#if selectedComponent.additionalDetails?.output}
+								<div class="property-group">
+									<h4>Current Output</h4>
+									{#if selectedComponent.additionalDetails.output.activePower !== null}
+										<div class="property">
+											<span class="property-name">Active Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.output.activePower}
+												{selectedComponent.additionalDetails.output.powerUnit || "kW"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.output.reactivePower !== null}
+										<div class="property">
+											<span class="property-name">Reactive Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.output.reactivePower}
+												{selectedComponent.additionalDetails.output.powerUnit || "kVAr"}
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+							{#if selectedComponent.additionalDetails.connection}
+								<div class="property-group">
+									<h3>connection</h3>
+									 <div class="property">
+										<span class="property-name">Connection ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connection.id || "N/A"}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Connection Name:</span>
+										<span class="property-value">{
+											selectedComponent.additionalDetails.connection.name || "N/A"
+										}</span>
+									</div>
+								</div>
+							{/if}
+								{#if selectedComponent.additionalDetails.location}
+								<div class="property-group">
+									<h3>Location</h3>
+									 <div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.latitude|| "N/A"}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{
+											selectedComponent.additionalDetails.location.longitude || "N/A"
+										}</span>
+									</div>
+								</div>
+							{/if}
+				
+						{:else if selectedComponent.type === "PhotovoltaicUnit"}
+							<div class="property-group">
+								<h4>Status</h4>
+								<div class="property">
+									<span class="property-name">State:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.state || "Unknown"}</span>
+								</div>
+							</div>
+
+							{#if selectedComponent.additionalDetails?.specifications}
+								<div class="property-group">
+									<h4>Specifications</h4>
+									{#if selectedComponent.additionalDetails.specifications.capacity}
+										<div class="property">
+											<span class="property-name">Capacity:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.capacity}
+												{selectedComponent.additionalDetails.specifications.capacityUnit || "kWh"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.minPower}
+										<div class="property">
+											<span class="property-name">Minimum Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.minPower}
+												{selectedComponent.additionalDetails.specifications.powerUnit || "kWh"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.ratedApparentPower}
+										<div class="property">
+											<span class="property-name">Rated Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.ratedApparentPower}
+												{selectedComponent.additionalDetails.specifications.powerUnit || "kVA"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.ratedVoltage}
+										<div class="property">
+											<span class="property-name">Rated Voltage:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.ratedVoltage}
+												{selectedComponent.additionalDetails.specifications.voltageUnit || "V"}
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							{#if selectedComponent.additionalDetails?.output}
+								<div class="property-group">
+									<h4>Current Output</h4>
+									{#if selectedComponent.additionalDetails.output.activePower !== null}
+										<div class="property">
+											<span class="property-name">Active Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.output.activePower}
+												{selectedComponent.additionalDetails.output.powerUnit || "kW"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.output.reactivePower !== null}
+										<div class="property">
+											<span class="property-name">Reactive Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.output.reactivePower}
+												{selectedComponent.additionalDetails.output.powerUnit || "kVAr"}
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+							{#if selectedComponent.additionalDetails.connection}
+								<div class="property-group">
+									<h3>connection</h3>
+									 <div class="property">
+										<span class="property-name">Connection ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connection.id || "N/A"}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Connection Name:</span>
+										<span class="property-value">{
+											selectedComponent.additionalDetails.connection.name || "N/A"
+										}</span>
+									</div>
+								</div>
+							{/if}
+							{#if selectedComponent.additionalDetails.location}
+								<div class="property-group">
+									<h3>Location</h3>
+									 <div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.latitude|| "N/A"}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{
+											selectedComponent.additionalDetails.location.longitude || "N/A"
+										}</span>
+									</div>
+								</div>
+							{/if}
+						
+						{:else if selectedComponent.type === "SynchronousMachine"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Function:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.generatorType || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Operating Status</h4>
+								<div class="property">
+									<span class="property-name">Mode:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.operatingMode || "Unknown"}</span>
+								</div>
+							</div>
+
+							{#if selectedComponent.additionalDetails?.specifications}
+								<div class="property-group">
+									<h4>Specifications</h4>
+									{#if selectedComponent.additionalDetails.specifications.ratedApparentPower != null}
+										<div class="property">
+											<span class="property-name">Rated Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.ratedApparentPower}
+												{selectedComponent.additionalDetails.specifications.powerUnit || "MVA"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.ratedVoltage != null}
+										<div class="property">
+											<span class="property-name">Rated Voltage:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.ratedVoltage}
+												{selectedComponent.additionalDetails.specifications.voltageUnit || "kV"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.nominalPower != null}
+										<div class="property">
+											<span class="property-name">Nominal Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.nominalPower}
+												{selectedComponent.additionalDetails.specifications.powerUnit || "MVA"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.baseApparentPower != null}
+										<div class="property">
+											<span class="property-name">Base Power:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.baseApparentPower}
+												{selectedComponent.additionalDetails.specifications.powerUnit || "MVA"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.specifications.maxGenerationPower != null}
+										<div class="property">
+											<span class="property-name">Max Generation:</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.specifications.maxGenerationPower}
+												{selectedComponent.additionalDetails.specifications.powerUnit || "MVA"}
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							{#if selectedComponent.additionalDetails?.output}
+								<div class="property-group">
+									<h4>Current Output</h4>
+									{#if selectedComponent.additionalDetails.output.activePower != null}
+										<div class="property">
+											<span class="property-name">Active Power (p):</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.output.activePower}
+												{selectedComponent.additionalDetails.output.powerUnit || "MW"}
+											</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.output.reactivePower != null}
+										<div class="property">
+											<span class="property-name">Reactive Power (q):</span>
+											<span class="property-value">
+												{selectedComponent.additionalDetails.output.reactivePower}
+												{selectedComponent.additionalDetails.output.powerUnit || "MVAr"}
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							{#if selectedComponent.additionalDetails?.hasRegulationControl}
+								<div class="property-group">
+									<h4>Regulation Control</h4>
+									<div class="property">
+										<span class="property-name">Control ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.regulationControlId || "N/A"}</span>
+									</div>
+								</div>
+							{/if}
+
+							{#if selectedComponent.additionalDetails?.hasDynamicsModel}
+								<div class="property-group">
+									<h4>Dynamics Model</h4>
+									<div class="property">
+										<span class="property-name">Model ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.dynamicsModelId || "N/A"}</span>
+									</div>
+								</div>
+							{/if}
+
+							{#if selectedComponent.location}
+								<div class="property-group">
+									<h4>Location</h4>
+									<div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.location.latitude.toFixed(6)}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{selectedComponent.location.longitude.toFixed(6)}</span>
+									</div>
+								</div>
+							{/if}
+						{:else if selectedComponent.type === "EnergySource"}
+							 {#if selectedComponent.additionalDetails?.voltage}
+								<div class="property-group">
+									<h4>Voltage</h4>
+									{#if selectedComponent.additionalDetails.voltage.baseVoltage != null}
+										<div class="property">
+											<span class="property-name">Base Voltage:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.baseVoltage} kV</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.voltage.nominalVoltage != null}
+										<div class="property">
+											<span class="property-name">Nominal Voltage:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.nominalVoltage} kV</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.voltage.magnitude != null}
+										<div class="property">
+											<span class="property-name">Voltage Magnitude:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.magnitude} V</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.voltage.angle != null}
+										<div class="property">
+											<span class="property-name">Voltage Angle:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.angle}°</span>
+										</div>
+									{/if}
+								</div>
+							 {/if}
+
+							{#if selectedComponent.additionalDetails?.impedance}
+								<div class="property-group">
+									<h4>Impedance</h4>
+									{#if selectedComponent.additionalDetails.impedance.r1 != null}
+										<div class="property">
+											<span class="property-name">Positive Sequence Resistance (R1):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.r1} Ω</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.impedance.x1 != null}
+										<div class="property">
+											<span class="property-name">Positive Sequence Reactance (X1):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.x1} Ω</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.impedance.r0 != null}
+										<div class="property">
+											<span class="property-name">Zero Sequence Resistance (R0):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.r0} Ω</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.impedance.x0 != null}
+										<div class="property">
+											<span class="property-name">Zero Sequence Reactance (X0):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.x0} Ω</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							{#if selectedComponent.additionalDetails?.power && (selectedComponent.additionalDetails.power.activePower != null || selectedComponent.additionalDetails.power.reactivePower )}
+								<div class="property-group">
+									<h4>Power Output</h4>
+									{#if selectedComponent.additionalDetails.power.activePower != null}
+										<div class="property">
+											<span class="property-name">Active Power:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.power.activePower} MW</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.power.reactivePower != null}
+										<div class="property">
+											<span class="property-name">Reactive Power:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.power.reactivePower} MVAr</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							<div class="property-group">
+								<h4>Connection</h4>
+								{#if selectedComponent.additionalDetails?.bus}
+									<div class="property">
+										<span class="property-name">Bus:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.bus}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.terminalId}
+									<div class="property">
+										<span class="property-name">Terminal ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.terminalId}</span>
+									</div>
+								{/if}
+							</div>
+
+							{#if selectedComponent.additionalDetails?.location}
+								<div class="property-group">
+									<h4>Location</h4>
+									<div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.latitude?.toFixed(6) || "N/A"}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.longitude?.toFixed(6) || "N/A"}</span>
+									</div>
+								</div>
+							{/if}
+						
+						{:else if selectedComponent.type === "LinearShuntCompensator"}
+
+							<div class="property-group">
+								<h4>Voltage Information</h4>
+								{#if selectedComponent.additionalDetails?.baseVoltage}
+									<div class="property">
+										<span class="property-name">Base Voltage:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.baseVoltage} V</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.nominalU}
+									<div class="property">
+										<span class="property-name">Nominal Voltage:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.nominalU} V</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Compensator Properties</h4>
+								{#if selectedComponent.additionalDetails?.bPerSection != null}
+									<div class="property">
+										<span class="property-name">Susceptance per Section:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.bPerSection} S</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.gPerSection != null}
+									<div class="property">
+										<span class="property-name">Conductance per Section:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.gPerSection} S</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.maximumSections != null}
+									<div class="property">
+										<span class="property-name">Maximum Sections:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.maximumSections}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.normalSections != null}
+									<div class="property">
+										<span class="property-name">Normal Sections:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.normalSections}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Details</h4>
+								<div class="property">
+									<span class="property-name">Grounded:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.grounded ? "Yes" : "No"}</span>
+								</div>
+								{#if selectedComponent.additionalDetails?.phaseConnection}
+									<div class="property">
+										<span class="property-name">Phase Connection:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.phaseConnection}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.aVRDelay != null}
+									<div class="property">
+										<span class="property-name">AVR Delay:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.aVRDelay} s</span>
+									</div>
+								{/if}
+							</div>
+
+							{#if selectedComponent.additionalDetails?.location}
+								<div class="property-group">
+									<h4>Location</h4>
+									<div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.latitude?.toFixed(6) || "N/A"}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.longitude?.toFixed(6) || "N/A"}</span>
+									</div>
+								</div>
+							{/if}
+						{:else if selectedComponent.type === "TransformerTank"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Tank Name:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.name || "Unknown"}</span>
+								</div>
+								<div class="property">
+									<span class="property-name">Tank ID:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.id || "N/A"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Tank Details</h4>
+								{#if selectedComponent.additionalDetails?.description}
+									<div class="property">
+										<span class="property-name">Description:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.description}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.windingInsulationType}
+									<div class="property">
+										<span class="property-name">Winding Insulation:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.windingInsulationType}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.windingRiseTemperature}
+									<div class="property">
+										<span class="property-name">Winding Rise Temp:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.windingRiseTemperature}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Power Ratings</h4>
+								{#if selectedComponent.additionalDetails?.ratings}
+									{#each Object.entries(selectedComponent.additionalDetails.ratings) as [key, value]}
+										<div class="property">
+											<span class="property-name">{formatPropertyName(key)}:</span>
+											<span class="property-value">{value}</span>
+										</div>
+									{/each}
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Impedance & Reactance</h4>
+								{#if selectedComponent.additionalDetails?.impedance}
+									<div class="property">
+										<span class="property-name">Resistance (R):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.impedance.r} Ω</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.reactance}
+									<div class="property">
+										<span class="property-name">Reactance (X):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.reactance.x} Ω</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Admittance</h4>
+								{#if selectedComponent.additionalDetails?.admittance}
+									<div class="property">
+										<span class="property-name">Susceptance (B):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.admittance.b} S</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.conductance}
+									<div class="property">
+										<span class="property-name">Conductance (G):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.conductance.g} S</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connections}
+									{#each Object.entries(selectedComponent.additionalDetails.connections) as [key, value]}
+										<div class="property">
+											<span class="property-name">{formatPropertyName(key)}:</span>
+											<span class="property-value">{value}</span>
+										</div>
+									{/each}
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Electrical Parameters</h4>
+								{#if selectedComponent.additionalDetails?.other}
+									{#each Object.entries(selectedComponent.additionalDetails.other) as [key, value]}
+										<div class="property">
+											<span class="property-name">{formatPropertyName(key)}:</span>
+											<span class="property-value">{value}</span>
+										</div>
+									{/each}
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connected Equipment</h4>
+								{#if selectedComponent.additionalDetails?.connectedEquipment}
+									<ul class="connected-equipment">
+										{#each selectedComponent.additionalDetails.connectedEquipment as equipment}
+											<li>{equipment.name} ({equipment.type})</li>
+										{/each}
+									</ul>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Measurements</h4>
+								{#if selectedComponent.additionalDetails?.measurements}
+									<ul class="measurements">
+										{#each Object.entries(selectedComponent.additionalDetails.measurements) as [type, measurement]}
+											<li class="measurement-type">
+												{formatPropertyName(type.split("#").pop())}:
+												<ul>
+													{#each measurement as m}
+														<li>
+															{m.name}
+															{#if m.unit && m.unit !== "unknown"}
+																({m.unit})
+															{/if}
+															{#if m.phases}
+																[Phase: {m.phases}]
+															{/if}
+														</li>
+													{/each}
+												</ul>
+											</li>
+										{/each}
+									</ul>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "Breaker"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Breaker Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Operational Details</h4>
+								{#if selectedComponent.additionalDetails?.operationalDetails}
+									<div class="property">
+										<span class="property-name">Operational Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.operationalDetails}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connectionConfiguration}
+									<div class="property">
+										<span class="property-name">Connection Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectionConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Details</h4>
+								{#if selectedComponent.additionalDetails?.otherDetails}
+									<div class="property">
+										<span class="property-name">Other Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.otherDetails}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "ConnectivityNode"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Node Name:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.name || "Unknown"}</span>
+								</div>
+								<div class="property">
+									<span class="property-name">Node ID:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.id || "N/A"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Bus Information</h4>
+								{#if selectedComponent.additionalDetails?.busName}
+									<div class="property">
+										<span class="property-name">Bus Name:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.busName}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.busType}
+									<div class="property">
+										<span class="property-name">Bus Type:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.busType}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connectivity</h4>
+								{#if selectedComponent.additionalDetails?.connectivity}
+									<div class="property">
+										<span class="property-name">Connectivity:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectivity}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "EnergyConsumer"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Description:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.description || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Electrical Parameters</h4>
+								{#if selectedComponent.additionalDetails?.activePower}
+									<div class="property">
+										<span class="property-name">Active Power (P):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.activePower} W</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.reactivePower}
+									<div class="property">
+										<span class="property-name">Reactive Power (Q):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.reactivePower} VAr</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.apparentPower}
+									<div class="property">
+										<span class="property-name">Apparent Power (S):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.apparentPower} VA</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.fixedActivePower}
+									<div class="property">
+										<span class="property-name">Fixed Active Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.fixedActivePower} W</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.fixedReactivePower}
+									<div class="property">
+										<span class="property-name">Fixed Reactive Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.fixedReactivePower} VAr</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.nominalVoltage}
+									<div class="property">
+										<span class="property-name">Nominal Voltage:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.nominalVoltage} V</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.powerFactor}
+									<div class="property">
+										<span class="property-name">Power Factor:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.powerFactor}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Phase Configuration</h4>
+								{#if selectedComponent.additionalDetails?.phaseConfiguration}
+									<div class="property">
+										<span class="property-name">Phase Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.phaseConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Customer Information</h4>
+								{#if selectedComponent.additionalDetails?.customerInfo}
+									<div class="property">
+										<span class="property-name">Customer Count:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.customerInfo.customerCount}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.customerInfo?.customerType}
+									<div class="property">
+										<span class="property-name">Customer Type:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.customerInfo.customerType}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connectivity</h4>
+								{#if selectedComponent.additionalDetails?.connectivity}
+									<div class="property">
+										<span class="property-name">Connectivity:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectivity}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Measurements</h4>
+								{#if selectedComponent.additionalDetails?.measurements}
+									<ul class="measurements">
+										{#each Object.entries(selectedComponent.additionalDetails.measurements) as [type, measurement]}
+											<li class="measurement-type">
+												{formatPropertyName(type.split("#").pop())}:
+												<ul>
+													{#each measurement as m}
+														<li>
+															{m.name}
+															{#if m.unit && m.unit !== "unknown"}
+																({m.unit})
+															{/if}
+															{#if m.phases}
+																[Phase: {m.phases}]
+															{/if}
+														</li>
+													{/each}
+												</ul>
+											</li>
+										{/each}
+									</ul>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "Fuse"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Fuse Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Operational Details</h4>
+								{#if selectedComponent.additionalDetails?.operationalDetails}
+									<div class="property">
+										<span class="property-name">Operational Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.operationalDetails}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connectionConfiguration}
+									<div class="property">
+										<span class="property-name">Connection Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectionConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Details</h4>
+								{#if selectedComponent.additionalDetails?.otherDetails}
+									<div class="property">
+										<span class="property-name">Other Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.otherDetails}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "LoadBreakSwitch"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Switch Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Operational Details</h4>
+								{#if selectedComponent.additionalDetails?.operationalDetails}
+									<div class="property">
+										<span class="property-name">Operational Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.operationalDetails}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connectionConfiguration}
+									<div class="property">
+										<span class="property-name">Connection Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectionConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Details</h4>
+								{#if selectedComponent.additionalDetails?.otherDetails}
+									<div class="property">
+										<span class="property-name">Other Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.otherDetails}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "Recloser"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Recloser Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Operational Details</h4>
+								{#if selectedComponent.additionalDetails?.operationalDetails}
+									<div class="property">
+										<span class="property-name">Operational Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.operationalDetails}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connectionConfiguration}
+									<div class="property">
+										<span class="property-name">Connection Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectionConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Details</h4>
+								{#if selectedComponent.additionalDetails?.otherDetails}
+									<div class="property">
+										<span class="property-name">Other Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.otherDetails}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "Sectionaliser"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Sectionaliser Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Operational Details</h4>
+								{#if selectedComponent.additionalDetails?.operationalDetails}
+									<div class="property">
+										<span class="property-name">Operational Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.operationalDetails}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connectionConfiguration}
+									<div class="property">
+										<span class="property-name">Connection Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectionConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Details</h4>
+								{#if selectedComponent.additionalDetails?.otherDetails}
+									<div class="property">
+										<span class="property-name">Other Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.otherDetails}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "Disconnector"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Disconnector Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Operational Details</h4>
+								{#if selectedComponent.additionalDetails?.operationalDetails}
+									<div class="property">
+										<span class="property-name">Operational Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.operationalDetails}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connectionConfiguration}
+									<div class="property">
+										<span class="property-name">Connection Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectionConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Details</h4>
+								{#if selectedComponent.additionalDetails?.otherDetails}
+									<div class="property">
+										<span class="property-name">Other Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.otherDetails}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "Switch"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Switch Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Operational Details</h4>
+								{#if selectedComponent.additionalDetails?.operationalDetails}
+									<div class="property">
+										<span class="property-name">Operational Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.operationalDetails}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection Configuration</h4>
+								{#if selectedComponent.additionalDetails?.connectionConfiguration}
+									<div class="property">
+										<span class="property-name">Connection Configuration:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connectionConfiguration}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Other Details</h4>
+								{#if selectedComponent.additionalDetails?.otherDetails}
+									<div class="property">
+										<span class="property-name">Other Details:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.otherDetails}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "PhotovoltaicUnit"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Photovoltaic Unit Type:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.type || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Status</h4>
+								{#if selectedComponent.additionalDetails?.status}
+									<div class="property">
+										<span class="property-name">Status:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.status}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Specifications</h4>
+								{#if selectedComponent.additionalDetails?.specifications}
+									<div class="property">
+										<span class="property-name">Capacity:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.capacity} kWh</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.specifications?.minPower}
+									<div class="property">
+										<span class="property-name">Minimum Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.minPower} kWh</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.specifications?.ratedApparentPower}
+									<div class="property">
+										<span class="property-name">Rated Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.ratedApparentPower} kVA</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.specifications?.ratedVoltage}
+									<div class="property">
+										<span class="property-name">Rated Voltage:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.ratedVoltage} V</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Current Output</h4>
+								{#if selectedComponent.additionalDetails?.output}
+									<div class="property">
+										<span class="property-name">Active Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.output.activePower} kW</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.output?.reactivePower}
+									<div class="property">
+										<span class="property-name">Reactive Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.output.reactivePower} kVAr</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Connection</h4>
+								{#if selectedComponent.additionalDetails?.connection}
+									<div class="property">
+										<span class="property-name">Connection ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connection.id || "N/A"}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.connection?.name}
+									<div class="property">
+										<span class="property-name">Connection Name:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.connection.name || "N/A"}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Location</h4>
+								{#if selectedComponent.additionalDetails?.location}
+									<div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.latitude?.toFixed(6) || "N/A"}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.location?.longitude}
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.longitude?.toFixed(6) || "N/A"}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "SynchronousMachine"}
+							<div class="property-group">
+								<div class="property">
+									<span class="property-name">Function:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.generatorType || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Operating Status</h4>
+								<div class="property">
+									<span class="property-name">Mode:</span>
+									<span class="property-value">{selectedComponent.additionalDetails?.operatingMode || "Unknown"}</span>
+								</div>
+							</div>
+
+							<div class="property-group">
+								<h4>Specifications</h4>
+								{#if selectedComponent.additionalDetails?.specifications}
+									<div class="property">
+										<span class="property-name">Rated Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.ratedApparentPower} MVA</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.specifications?.ratedVoltage}
+									<div class="property">
+										<span class="property-name">Rated Voltage:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.ratedVoltage} kV</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.specifications?.nominalPower}
+									<div class="property">
+										<span class="property-name">Nominal Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.nominalPower} MVA</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.specifications?.baseApparentPower}
+									<div class="property">
+										<span class="property-name">Base Power:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.baseApparentPower} MVA</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.specifications?.maxGenerationPower}
+									<div class="property">
+										<span class="property-name">Max Generation:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.specifications.maxGenerationPower} MVA</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Current Output</h4>
+								{#if selectedComponent.additionalDetails?.output}
+									<div class="property">
+										<span class="property-name">Active Power (p):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.output.activePower} MW</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.output?.reactivePower}
+									<div class="property">
+										<span class="property-name">Reactive Power (q):</span>
+										<span class="property-value">{selectedComponent.additionalDetails.output.reactivePower} MVAr</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Regulation Control</h4>
+								{#if selectedComponent.additionalDetails?.regulationControlId}
+									<div class="property">
+										<span class="property-name">Control ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.regulationControlId || "N/A"}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Dynamics Model</h4>
+								{#if selectedComponent.additionalDetails?.dynamicsModelId}
+									<div class="property">
+										<span class="property-name">Model ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.dynamicsModelId || "N/A"}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="property-group">
+								<h4>Location</h4>
+								{#if selectedComponent.location}
+									<div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.location.latitude.toFixed(6)}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.location?.longitude}
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{selectedComponent.location.longitude.toFixed(6)}</span>
+									</div>
+								{/if}
+							</div>
+						{:else if selectedComponent.type === "EnergySource"}
+							 {#if selectedComponent.additionalDetails?.voltage}
+								<div class="property-group">
+									<h4>Voltage</h4>
+									{#if selectedComponent.additionalDetails.voltage.baseVoltage != null}
+										<div class="property">
+											<span class="property-name">Base Voltage:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.baseVoltage} kV</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.voltage.nominalVoltage != null}
+										<div class="property">
+											<span class="property-name">Nominal Voltage:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.nominalVoltage} kV</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.voltage.magnitude != null}
+										<div class="property">
+											<span class="property-name">Voltage Magnitude:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.magnitude} V</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.voltage.angle != null}
+										<div class="property">
+											<span class="property-name">Voltage Angle:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.voltage.angle}°</span>
+										</div>
+									{/if}
+								</div>
+							 {/if}
+
+							{#if selectedComponent.additionalDetails?.impedance}
+								<div class="property-group">
+									<h4>Impedance</h4>
+									{#if selectedComponent.additionalDetails.impedance.r1 != null}
+										<div class="property">
+											<span class="property-name">Positive Sequence Resistance (R1):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.r1} Ω</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.impedance.x1 != null}
+										<div class="property">
+											<span class="property-name">Positive Sequence Reactance (X1):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.x1} Ω</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.impedance.r0 != null}
+										<div class="property">
+											<span class="property-name">Zero Sequence Resistance (R0):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.r0} Ω</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.impedance.x0 != null}
+										<div class="property">
+											<span class="property-name">Zero Sequence Reactance (X0):</span>
+											<span class="property-value">{selectedComponent.additionalDetails.impedance.x0} Ω</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							{#if selectedComponent.additionalDetails?.power && (selectedComponent.additionalDetails.power.activePower != null || selectedComponent.additionalDetails.power.reactivePower )}
+								<div class="property-group">
+									<h4>Power Output</h4>
+									{#if selectedComponent.additionalDetails.power.activePower != null}
+										<div class="property">
+											<span class="property-name">Active Power:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.power.activePower} MW</span>
+										</div>
+									{/if}
+									{#if selectedComponent.additionalDetails.power.reactivePower != null}
+										<div class="property">
+											<span class="property-name">Reactive Power:</span>
+											<span class="property-value">{selectedComponent.additionalDetails.power.reactivePower} MVAr</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							<div class="property-group">
+								<h4>Connection</h4>
+								{#if selectedComponent.additionalDetails?.bus}
+									<div class="property">
+										<span class="property-name">Bus:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.bus}</span>
+									</div>
+								{/if}
+								{#if selectedComponent.additionalDetails?.terminalId}
+									<div class="property">
+										<span class="property-name">Terminal ID:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.terminalId}</span>
+									</div>
+								{/if}
+							</div>
+
+							{#if selectedComponent.additionalDetails?.location}
+								<div class="property-group">
+									<h4>Location</h4>
+									<div class="property">
+										<span class="property-name">Latitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.latitude?.toFixed(6) || "N/A"}</span>
+									</div>
+									<div class="property">
+										<span class="property-name">Longitude:</span>
+										<span class="property-value">{selectedComponent.additionalDetails.location.longitude?.toFixed(6) || "N/A"}</span>
+									</div>
+								</div>
+							{/if}
+						
+						{:else if selectedComponent.type === "LinearShuntCompensator"}
+							
+							
 						{/if}
 					{/if}
 				{/if}
@@ -2378,7 +3859,7 @@
 
 	.zoom-controls {
 		position: absolute;
-		bottom: 24px;
+		bottom: 4px;
 		left: 10px;
 		background: var(--control-bg);
 		padding: 4px;
@@ -2581,6 +4062,7 @@
 	.legend-toggle {
 		top: 10px;
 		right: 10px;
+		z-index: 1;
 	}
 
 	.toggle-button.filters-toggle.active {
